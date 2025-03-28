@@ -1,3 +1,4 @@
+import json
 import pygame, sys, random
 
 # Thiết lập kích thước màn hình mới
@@ -12,13 +13,8 @@ def draw_floor():
 def create_pipe():
     random_pipe_pos = random.choice(pipe_height)
     bottom_pipe = pipe_surface.get_rect(midtop=(SCREEN_WIDTH, random_pipe_pos))
-    top_pipe = pipe_surface.get_rect(midbottom=(SCREEN_WIDTH, random_pipe_pos - 200))
+    top_pipe = pipe_surface.get_rect(midbottom=(SCREEN_WIDTH, random_pipe_pos - 150))
     return bottom_pipe, top_pipe
-
-def move_pipe(pipes):
-    for pipe in pipes:
-        pipe.centerx -= 5
-    return pipes
 
 def draw_pipe(pipes):
     for pipe in pipes:
@@ -67,6 +63,110 @@ def draw_text_input():
     text_surface = game_font.render(player_name, True, (255, 255, 255))
     screen.blit(input_box, input_box_rect)
     screen.blit(text_surface, (input_box_rect.x + 10, input_box_rect.y + 5))
+
+def load_high_scores():
+    try:
+        with open("high_scores.json", "r") as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []  # Nếu file không tồn tại, trả về danh sách trống
+
+# Hàm lưu điểm cao
+def save_high_score(name, score):
+    high_scores = load_high_scores()  # Lấy danh sách điểm hiện có
+    found = False
+
+    # Cập nhật điểm nếu tên đã có trong danh sách
+    for entry in high_scores:
+        if entry["name"] == name:
+            entry["score"] = max(entry["score"], int(score))  # Giữ điểm cao nhất
+            found = True
+            break
+
+    # Nếu tên chưa có, thêm mới vào danh sách
+    if not found:
+        high_scores.append({"name": name, "score": int(score)})
+
+    # Sắp xếp danh sách theo điểm số giảm dần
+    high_scores = sorted(high_scores, key=lambda x: x["score"], reverse=True)
+
+    # Giữ lại tối đa 5 người chơi có điểm cao nhất
+    with open("high_scores.json", "w") as file:
+        json.dump(high_scores[:5], file, indent=4)
+
+
+def draw_high_scores():
+    high_scores = load_high_scores()  # Cập nhật danh sách điểm ngay lập tức
+    y_offset = 20  # Hiển thị ở góc trái trên cùng màn hình
+    for i, entry in enumerate(high_scores):
+        text_surface = font.render(f"{i+1}. {entry['name']}: {entry['score']}", True, (255, 255, 255))
+        screen.blit(text_surface, (20, y_offset))  # Căn trái trên cùng
+        y_offset += 40
+
+
+def reset_game():
+    global bird_movement, pipe_list, score, game_active, waiting_to_start
+    pipe_list.clear()
+    bird_rect.center = (100, 350)
+    bird_movement = 0
+    score = 0
+    game_active = True
+    waiting_to_start = False
+
+def draw_combobox():
+    """Vẽ combobox chọn mức độ"""
+    font = pygame.font.Font(None, 36)
+
+    # Hiển thị chữ "Mức độ:"
+    text_surface = font.render("Level:", True, (255, 255, 255))
+    screen.blit(text_surface, (dropdown_rect.x - 100, dropdown_rect.y + 10))  
+
+    # Vẽ ô combobox
+    pygame.draw.rect(screen, (100, 100, 100), dropdown_rect)  
+    selected_text = font.render(selected_difficulty, True, (255, 255, 255))
+    screen.blit(selected_text, (dropdown_rect.x + 10, dropdown_rect.y + 10))
+
+    # Nếu combobox mở, hiển thị danh sách lựa chọn
+    if dropdown_open:
+        for i, level in enumerate(difficulty_levels):
+            pygame.draw.rect(screen, (50, 50, 50), dropdown_items[i])  
+            option_text = font.render(level, True, (255, 255, 255))
+            screen.blit(option_text, (dropdown_items[i].x + 10, dropdown_items[i].y + 10))
+
+def handle_combobox_click(pos):
+    """Xử lý bấm vào combobox"""
+    global dropdown_open, selected_difficulty
+
+    if dropdown_rect.collidepoint(pos):
+        dropdown_open = not dropdown_open  
+    elif dropdown_open:
+        for i, rect in enumerate(dropdown_items):
+            if rect.collidepoint(pos):
+                selected_difficulty = difficulty_levels[i]
+                dropdown_open = False
+                update_game_difficulty(selected_difficulty)  
+def update_game_difficulty(level):
+    """Cập nhật tốc độ game theo mức độ"""
+    global pipe_speed, gravity
+    if level == "Easy":
+        pipe_speed = 3
+        gravity = 0.25
+    elif level == "Medium":
+        pipe_speed = 5
+        gravity = 0.25
+    elif level == "Hard":
+        pipe_speed = 7
+        gravity = 0.25
+
+def move_pipe(pipes):
+    for pipe in pipes:
+        pipe.centerx -= pipe_speed  # Sử dụng biến pipe_speed
+    return pipes
+
+
+
+
+
 
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -128,11 +228,36 @@ game_over_surface = pygame.image.load('assets/message.png').convert_alpha()
 game_over_surface = pygame.transform.scale(game_over_surface, (300, 400))
 game_over_rect = game_over_surface.get_rect(center=(SCREEN_WIDTH // 2, 350))
 
+# Lấy 5 người có điểm cao nhất từ file JSON
+high_scores = []
+try:
+    with open("high_scores.json", "r") as file:
+        scores = json.load(file)
+        high_scores = sorted(scores, key=lambda x: x["score"], reverse=True)[:5]
+except (FileNotFoundError, json.JSONDecodeError):
+    print("Không tìm thấy hoặc không thể đọc file điểm cao!")
+
+# Font hiển thị điểm
+font = pygame.font.Font(None, 36)
+
+# Mức độ mặc định là Medium
+difficulty_levels = ["Easy", "Medium", "Hard"]
+selected_difficulty = "Medium"  
+dropdown_open = False
+
+# Vị trí combobox
+dropdown_rect = pygame.Rect(SCREEN_WIDTH - 180, 20, 150, 40)  
+dropdown_items = [pygame.Rect(SCREEN_WIDTH - 180, 60 + i * 40, 150, 40) for i in range(len(difficulty_levels))]
+# Đặt mức độ mặc định
+update_game_difficulty(selected_difficulty)
+
 # Chèn âm thanh
 flap_sound = pygame.mixer.Sound('sound/5_Flappy_Bird_sound_sfx_wing.wav')
 hit_sound = pygame.mixer.Sound('sound/5_Flappy_Bird_sound_sfx_hit.wav')
 score_sound = pygame.mixer.Sound('sound/5_Flappy_Bird_sound_sfx_point.wav')
 score_sound_countdown = 100
+
+
 
 # Vòng lặp trò chơi
 while True:
@@ -155,15 +280,14 @@ while True:
                     if len(player_name) < 10:
                         player_name += event.unicode
 
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            handle_combobox_click(event.pos)  
+
         # Chờ bấm SPACE để bắt đầu
         elif waiting_to_start:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                waiting_to_start = False
-                game_active = True
-                pipe_list.clear()
-                bird_rect.center = (100, 350)
-                bird_movement = 0
-                score = 0
+               reset_game()
 
         # Game đang chạy
         elif game_active:
@@ -188,6 +312,9 @@ while True:
     # Hiển thị "Nhấn SPACE để bắt đầu"
     elif waiting_to_start:
          screen.blit(game_over_surface,game_over_rect) 
+         draw_combobox()
+         draw_high_scores()
+         
 
     # Game đang chạy
     elif game_active:
@@ -199,22 +326,34 @@ while True:
         game_active = check_collision(pipe_list)
         if bird_rect.top <= -50 or bird_rect.bottom >= 550:
             game_active = False
+            save_high_score(player_name, score)
             waiting_to_start = True  # Sau khi thua, quay lại màn hình chờ SPACE
 
         # Xử lý ống nước
         pipe_list = move_pipe(pipe_list)
         draw_pipe(pipe_list)
 
-        # Hiển thị điểm
-        score += 0.01
+        for pipe in pipe_list:
+            if pipe.centerx == bird_rect.centerx:  # Khi chim đi qua tâm của ống nước
+                score += 1
+                score_sound.play()  # Phát âm thanh điểm
+
         score_display('main game')
+
+
 
     # Khi thua
     else:
-        screen.blit(game_over_surface, game_over_rect)
         high_score = update_score(score, high_score)
+        save_high_score(player_name, score)
+        screen.blit(game_over_surface, game_over_rect)
         score_display('game_over')
         waiting_to_start = True  # Sau khi thua, quay lại màn hình chờ SPACE
-
+        draw_high_scores()
+    #sàn
+    floor_x_pos -= 1
+    draw_floor()
+    if floor_x_pos <= -432:
+        floor_x_pos =0
     pygame.display.update()
     clock.tick(80)

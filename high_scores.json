@@ -1,1 +1,14 @@
-[["hongtham", 2], ["hongtham", 2], ["hongtham", 2], ["hongtham", 2], ["hongtham", 2]]
+[
+    {
+        "name": "nani",
+        "score": 8
+    },
+    {
+        "name": "hongtham",
+        "score": 8
+    },
+    {
+        "name": "sky",
+        "score": 6
+    }
+]

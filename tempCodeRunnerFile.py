@@ -1,0 +1,1 @@
+screen.blit(game_over_surface
