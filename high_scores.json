@@ -1,18 +1,22 @@
 [
     {
+        "name": "hongtham",
+        "score": 28
+    },
+    {
+        "name": "aaa",
+        "score": 20
+    },
+    {
+        "name": "HONTHAM",
+        "score": 17
+    },
+    {
         "name": "Hongtham",
         "score": 9
     },
     {
         "name": "nani",
         "score": 8
-    },
-    {
-        "name": "hongtham",
-        "score": 8
-    },
-    {
-        "name": "sky",
-        "score": 6
     }
 ]
